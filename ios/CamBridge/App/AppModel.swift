@@ -130,11 +130,6 @@ final class AppModel {
 		}
 	}
 
-	/// Called once from the App's init (before launch completes).
-	func registerBackgroundTasks() {
-		background.register()
-	}
-
 	var activeCamera: PairedCamera? { pairings.activeCamera }
 
 	var cameraDisplayName: String {
@@ -504,9 +499,9 @@ final class AppModel {
 		}
 		let reduced = settings.compressSmall && capabilities.compressSmallToggle.isAvailable
 		let added = queue.enqueue(requests, cameraReduced: reduced, force: force)
-		if added > 0 { background.beginIfNeeded(itemCount: queue.pendingCount) }
 		gallery.selection.removeAll()
 		updateIdleTimer()
+		if added > 0 { await background.beginIfNeeded(itemCount: queue.pendingCount) }
 	}
 
 	private func transferStateChanged() {
@@ -652,6 +647,7 @@ final class AppModel {
 			if let client, !(await client.isConnected()) {
 				sessionLost(PTPError.notConnected)
 			}
+			background.appDidBecomeActive()
 			updateIdleTimer()
 		default:
 			break

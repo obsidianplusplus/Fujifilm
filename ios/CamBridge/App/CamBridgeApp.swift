@@ -7,10 +7,9 @@ struct CamBridgeApp: App {
 	@Environment(\.scenePhase) private var scenePhase
 
 	init() {
-		let model = AppModel()
-		// BGTaskScheduler handlers must be registered before launch finishes.
-		model.registerBackgroundTasks()
-		_model = State(initialValue: model)
+		// Background continued-processing handlers are registered per batch when a
+		// download starts (BackgroundTransferCoordinator), not at launch.
+		_model = State(initialValue: AppModel())
 	}
 
 	var body: some Scene {
