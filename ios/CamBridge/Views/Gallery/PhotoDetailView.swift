@@ -31,6 +31,13 @@ struct PhotoDetailView: View {
 				KeyValueRow(key: "相机附加信息", value: info?.keywords.nilIfEmptyString)
 				KeyValueRow(key: "当前列表位置（句柄）", value: "\(handle)")
 				KeyValueRow(key: "导入状态", value: importText(item?.importStatus))
+				if case .alreadyImported(let r)? = item?.importStatus {
+					KeyValueRow(key: "已接收字节", value: "\(r.byteCount)")
+					VStack(alignment: .leading, spacing: 2) {
+						Text("SHA-256").font(.caption).foregroundStyle(.secondary)
+						Text(r.sha256).font(.caption.monospaced()).textSelection(.enabled)
+					}
+				}
 				if let e = item?.infoError { Text(e).font(.footnote).foregroundStyle(.orange) }
 			}
 

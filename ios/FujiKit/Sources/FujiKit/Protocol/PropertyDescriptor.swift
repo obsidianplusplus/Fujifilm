@@ -85,7 +85,8 @@ public struct PropertyDescriptor: Sendable, Hashable {
 		guard writable else { return false }
 		switch form {
 		case .enumeration(let values): return !values.isEmpty
-		case .range: return true
+		// Ranges that cannot be listed (non-integer or more than 512 steps) stay read-only.
+		case .range: return !allowedValues.isEmpty
 		default: return false
 		}
 	}

@@ -85,6 +85,17 @@ import Testing
 		#expect(throws: ByteReader.Error.self) { try PropertyDescriptor.encode(.int(70000), as: .int16) }
 	}
 
+	@Test func unlistableRangeIsNotEditable() throws {
+		var w = ByteWriter()
+		w.u16(0xD001); w.u16(0x0006); w.u8(1)
+		w.u32(0); w.u32(5)
+		w.u8(1); w.u32(0); w.u32(100_000); w.u32(1) // 100001 steps: too many to offer as choices
+		let d = try PropertyDescriptor.parse(w.bytes)
+		#expect(d.writable)
+		#expect(d.allowedValues.isEmpty)
+		#expect(!d.isEditableWithKnownValues)
+	}
+
 	@Test func stringDescriptorAndExtendedForm() throws {
 		var w = ByteWriter()
 		w.u16(0xD20B); w.u16(0xFFFF); w.u8(1)
