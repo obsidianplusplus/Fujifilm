@@ -96,6 +96,9 @@ public final class TransferQueue {
 	@ObservationIgnored public var saver: (any MediaLibrarySaver)?
 	/// Called when an item finishes or the queue drains (used for background task progress).
 	@ObservationIgnored public var onChange: (() -> Void)?
+	/// Called right before an item downloads (the app sets session-wide camera
+	/// flags such as libfuji's compress_images_for_smartphone to match the item).
+	@ObservationIgnored public var willStart: ((TransferItem) async -> Void)?
 
 	@ObservationIgnored private var source: (any CameraObjectSource)?
 	@ObservationIgnored private let engine: TransferEngine
@@ -311,6 +314,8 @@ public final class TransferQueue {
 		progressBox.set((items[index].bytesReceived, items[index].totalBytes))
 		save()
 
+		await willStart?(items[index])
+		guard let index = items.firstIndex(where: { $0.id == id }), items[index].state == .running else { return }
 		let request = items[index].request
 		var options = optionsProvider()
 		options.cameraReduced = items[index].cameraReduced
