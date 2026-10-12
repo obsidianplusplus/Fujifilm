@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds the vendored C core + iOS shim on the host with clang, ASan/UBSan and
-# Apple-clang-like hard errors, links the given test program and runs it.
+# Apple-clang-like hard errors (including the -Wshorten-64-to-32 and
+# -Wunsequenced warnings Xcode reports), links the given test program and runs it.
 #
 # Usage: ios/scripts/c-core-check.sh [test.c] [args...]
 #   default test: ios/FujiKit/Tests/CTests/smoke.c
@@ -20,6 +21,7 @@ CFLAGS=(
 	-Wall -Wno-unused-function -Wno-unused-variable -Wno-unused-but-set-variable
 	-Werror=implicit-function-declaration -Werror=int-conversion
 	-Werror=incompatible-pointer-types -Werror=return-type
+	-Werror=shorten-64-to-32 -Werror=unsequenced
 	-DEZXML_NOMMAP
 	-I"$SRC/upstream/libpict" -I"$SRC/upstream/libfuji" -I"$SRC/upstream/fp" -I"$SRC/include"
 	-fsanitize=address,undefined -fno-omit-frame-pointer

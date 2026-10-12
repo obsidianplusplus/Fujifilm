@@ -611,9 +611,9 @@ static int state_idle(struct DiscoveryState *s, struct DiscoverInfo *info, const
 		if (FD_ISSET(s->reg_fd, &fdset)) {
 			ptp_verbose_log(s->r, "AutoSave register\n");
 			info->transport = FUJI_FEATURE_AUTOSAVE;
-			unsigned int len = recvfrom(s->reg_fd, greeting, sizeof(greeting) - 1, 0, NULL, NULL);
+			ssize_t len = recvfrom(s->reg_fd, greeting, sizeof(greeting) - 1, 0, NULL, NULL);
 			if (len <= 0) {
-				ptp_error_log(s->r, "recvfrom: %d\n", len);
+				ptp_error_log(s->r, "recvfrom: %zd\n", len);
 				return -1;
 			}
 			greeting[len] = '\0';
@@ -627,9 +627,9 @@ static int state_idle(struct DiscoveryState *s, struct DiscoverInfo *info, const
 		if (FD_ISSET(s->con_fd, &fdset)) {
 			ptp_verbose_log(s->r, "AutoSave connect\n");
 			info->transport = FUJI_FEATURE_AUTOSAVE;
-			unsigned int len = recvfrom(s->con_fd, greeting, sizeof(greeting) - 1, 0, NULL, NULL);
+			ssize_t len = recvfrom(s->con_fd, greeting, sizeof(greeting) - 1, 0, NULL, NULL);
 			if (len <= 0) {
-				ptp_error_log(s->r, "recvfrom: %d\n", len);
+				ptp_error_log(s->r, "recvfrom: %zd\n", len);
 				return -1;
 			}
 			greeting[len] = '\0';

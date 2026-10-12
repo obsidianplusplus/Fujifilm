@@ -51,6 +51,9 @@ iOS App 的 C 核心通过 `ios/scripts/vendor-sync.sh` 从**固定的 git 对�
 | libfuji/0005 `liveview-frame-read-fully-and-validate` | 头部长度 < 18 时 `len -= 18` 下溢；读到 0 字节时无限重试；头部没读满会让数据流错位 | 尝试读取约 4 GB、实时取景线程卡死 |
 | libpict/0001 `ip-shutdown-io-and-comm-deinit` | 无法从其他线程打断阻塞的 `read()`；`ptpip_comm_deinit` 只有声明没有定义；connect 超时泄漏 fd | `fuji_setup` 等待用户在相机上按 OK 时最长可阻塞 255 × 5 秒，无法取消 |
 | fp/0001 `fp_parse_fp1-null-checks-and-free` | 文件不可读或 XML 格式错误时解引用 NULL；解析树未释放；`device`/`version` 字段从未填充 | 打开损坏的配方文件就崩溃 |
+| fp/0002 `ezxml-unsequenced-access-and-explicit-narrowing` | `ezxml.c:364` 的 `n = ++s + strspn(s, …)` 在没有序列点的情况下修改并读取 `s`（未定义行为）；另有两处有界的 64→32 位转换 | 结果依赖编译器的求值顺序。改用逗号运算符先自增，与原意一致 |
+| libfuji/0006 `recvfrom-signed-result-and-explicit-narrowing` | `discovery.c`：`recvfrom()` 的结果存进 `unsigned int`，出错时的 -1 变成 0xFFFFFFFF，`len <= 0` 判断不到，随后 `greeting[len] = '\0'` 越界写入；`fuji_usb.c`：`ftell()` 失败（-1）时能通过“文件过大”检查 | 内存越界写入。这两处都不在 App 的调用路径上（PC AutoSave 发现、USB 恢复备份） |
+| libpict/0002 `guard-32-bit-sizes-and-explicit-narrowing` | `ptp_buffer_resize` 的缓冲区按 64 位大小分配，长度却截断存入 32 位 `data_length`；MTP 字符串长度字节在超过 254 个字符时回绕；固件更新、CHDK 上传、`ptp_download_object` 没有检查 32 位上限 | 缓冲区长度记录错误。现在拒绝无法表示的大小，或显式截断 |
 
 ## 已知但未打补丁的上游问题
 
@@ -58,7 +61,7 @@ iOS App 的 C 核心通过 `ios/scripts/vendor-sync.sh` 从**固定的 git 对�
 |---|---|---|
 | libpict `ptp_parse_prop_desc` | 遇到 NoForm/DateTime/数组等表单类型会调用 `ptp_panic`；也不检查载荷长度 | **App 不调用它**：shim 只返回原始字节，由 Swift 的 `PropertyDescriptor` 做带边界检查的解析。解析失败的属性只显示原因；没有允许值列表（范围/枚举）的属性只读显示，都不提供写入 |
 | libfuji `ptp_get_partial_exif` | 返回的偏移和长度指向一个临时缓冲区，而且该缓冲区泄漏 | 不调用；PC AutoSave 入口关闭 |
-| ezxml `ezxml.c:364` | `n = ++s + strspn(s, …)` 属于未定序访问（clang `-Wunsequenced` 警告） | clang 实际按从左到右求值，结果符合原意；配方解析有 FP1/FP2 夹具测试。保持上游原样，未修改 |
+| libpict `ptpip_read_packet`（`transport.c`） | 网络数据包中的长度字段不经检查就参与无符号运算：长度小于已读字节数会下溢，接近 4 GB 时缓冲区计算会回绕 | 只用于标准 PTP/IP（`PTP_IP`）。富士连接使用 `PTP_IP_USB`，走 `ptpusb_read_all_packets`，该循环每次读取前都按“已读 + 最大包长”扩大缓冲区，不受影响。未修改 |
 | libfuji `bluetooth.c` 中的 TODO | XApp/旧版协议判定、“SELECT PAIRING DESTINATION”不匹配、未绑定设备的处理 | Swift 实现按 GATT 服务判定，不混用两种方案；写入失败时提示检查相机的配对目标设置 |
 
 ## 与上游的行为差异
@@ -73,5 +76,5 @@ iOS App 的 C 核心通过 `ios/scripts/vendor-sync.sh` 从**固定的 git 对�
 
 1. 修改 `vendor-sync.sh` 中的 `LIBFUJI_SHA` / `LIBPICT_SHA`，并同步更新 `CapabilityCatalog.libfujiSHA` / `libpictSHA`。
 2. 运行 `ios/scripts/vendor-sync.sh`。补丁无法应用时，先用 `--pristine DIR` 导出未打补丁的副本，再重做补丁。
-3. 运行 `ios/scripts/c-core-check.sh`、`ios/scripts/vcam-integration.sh` 和 FujiKit 的 `swift test`。
+3. 运行 `ios/scripts/c-core-check.sh`、`ios/scripts/vcam-integration.sh` 和 FujiKit 的 `swift test`。`c-core-check.sh` 把 Xcode 会报告的 `-Wshorten-64-to-32` 和 `-Wunsequenced` 当作错误，新版本上游如果引入这类问题，会在这里先失败。
 4. 提交 `upstream/`、`VENDOR_MANIFEST.txt` 和补丁，然后用 `--check` 确认结果可以复现。

@@ -867,7 +867,7 @@ int fuji_download_file_ex(struct PtpRuntime *r, int handle, int (info)(void *arg
 			goto end;
 		}
 
-		rc = handle_add(arg, ptp_get_payload(r), payload_size, read, oi.compressed_size);
+		rc = handle_add(arg, ptp_get_payload(r), (unsigned int)payload_size, read, oi.compressed_size);
 		if (rc) {
 			rc = PTP_CANCELED;
 			goto end;

@@ -98,7 +98,9 @@ int ptp_read_uint16_array_s(uint8_t *bs, uint8_t *be, uint16_t *buf, int max, in
 int ptp_write_string(uint8_t *dat, const char *string) {
 	int of = 0;
 
-	uint32_t length = strlen(string);
+	// The length is one byte including the terminator: at most 254 characters.
+	size_t full_length = strlen(string);
+	uint32_t length = full_length > 254 ? 254 : (uint32_t)full_length;
 	if (length == 0) {
 		// 'An empty string is represented by a single 8-bit integer containing a value of 0x00.'
 		ptp_write_u8(dat, 0x0);
@@ -487,13 +489,18 @@ void *ptp_pack_chdk_upload_file(struct PtpRuntime *r, char *in, char *out, unsig
     long file_size = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-	unsigned int size_all = 4 + strlen(out) + 1 + file_size;
+	size_t name_size = strlen(out) + 1;
+	if (file_size < 0 || (unsigned long)file_size > UINT32_MAX - 4 - name_size) {
+		fclose(f);
+		return NULL;
+	}
+	unsigned int size_all = (unsigned int)(4 + name_size + (size_t)file_size);
 	*length = size_all;
 	uint8_t *data = malloc(size_all);
 	if (data == NULL) return NULL;
 
 	int of = 0;
-	of += ptp_write_u32(data + of, strlen(out) + 1);
+	of += ptp_write_u32(data + of, (uint32_t)name_size);
 	of += ptp_write_utf8_string(data + of, out);
 
 	fread(data + of, 1, file_size, f);

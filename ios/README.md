@@ -4,10 +4,10 @@
 
 > **验证状态（务必先读）**
 >
-> - 本目录里的代码**没有在 X-T30 III 真机上运行过**，也**没有用 iOS SDK 编译过**。
+> - 本目录里的代码**没有在 X-T30 III 真机上运行过**。
 > - 编写环境只有 Linux，做过的验证是：C 核心与平台无关的 Swift 代码在 Linux 上编译、跑单元测试，以及对开源仿真相机 petabyt/vcam（仿真 X-S10 / GFX100 II，不是 X-T30 III）做端到端测试。
-> - 只依赖 Apple 框架的代码（CoreBluetooth、NetworkExtension、Photos、ImageCaptureCore、CoreLocation、BackgroundTasks、SwiftUI 界面）只做过 `swiftc -parse` 语法检查和人工审阅。
-> - 第一次在 Xcode 中构建时，可能还要修正少量类型或 API 签名问题。
+> - 只依赖 Apple 框架的代码（CoreBluetooth、NetworkExtension、Photos、ImageCaptureCore、CoreLocation、BackgroundTasks、SwiftUI 界面）在编写环境中只做过 `swiftc -parse` 语法检查和人工审阅。
+> - 使用者已在 Xcode（iOS 27 SDK）中成功构建并启动过本分支的早期版本，报告了 C 代码警告、一个弃用警告和后台任务注册失败，这些已在之后的提交中修正。修正后的版本尚未在 Xcode 中重新构建。
 > - 每项功能的状态见 [docs/CAPABILITY_MATRIX.md](docs/CAPABILITY_MATRIX.md)，真机验证步骤见 [docs/X-T30-III-VERIFICATION.md](docs/X-T30-III-VERIFICATION.md)。
 
 ## 目录
@@ -84,7 +84,7 @@ ios/
 | 检查 | 命令 | 覆盖范围 |
 |---|---|---|
 | 复制的 C 源码是否与固定上游 + 补丁一致 | `ios/scripts/vendor-sync.sh --check` | 逐文件比对 sha256（需要子模块，见下文） |
-| C 核心 + iOS shim，ASan/UBSan | `ios/scripts/c-core-check.sh` | 用 clang 编译全部 C 代码（隐式声明等视为错误），运行冒烟测试 |
+| C 核心 + iOS shim，ASan/UBSan | `ios/scripts/c-core-check.sh` | 用 clang 编译全部 C 代码（隐式声明，以及 Xcode 会报的 `-Wshorten-64-to-32`、`-Wunsequenced` 都视为错误），运行冒烟测试 |
 | 对 vcam 仿真相机的 C 层集成测试 | `VCAM=/path/to/vcam ios/scripts/vcam-integration.sh` | 握手、OpenSession、事件、对象列表、分块下载、断点续传、中止 setup/下载、实时取景帧 |
 | FujiKit Swift 单元测试 | `cd ios/FujiKit && docker run --rm -v "$PWD":/pkg -w /pkg swift:6.4-noble swift test` | 报文编解码、描述符解析、传输引擎（续传校验、去重、取消、断线等待）、队列、配方解析、能力矩阵 |
 | Swift 端到端（PTPClient → TransferEngine → vcam） | 先启动 vcam（`fuji_x_s10 tcp --ip 127.0.0.1 --fs <card>`），再在 `ios/FujiKit` 中执行 `docker run --rm --network host -e FUJIKIT_VCAM_CARD=/card -v <card>:/card:ro -v "$PWD":/pkg -w /pkg swift:6.4-noble swift test --filter VCam` | 浏览、下载、完整性检查、导入记录 |
@@ -104,13 +104,13 @@ git -c url."https://github.com/".insteadOf="git@github.com:" submodule update --
 
 | 未执行 | 原因 | 风险/后续 |
 |---|---|---|
-| 用 Xcode 27 / iOS 27 SDK 编译 App 和 FujiKit 的 Apple 专用文件 | 编写环境只有 Linux，没有 macOS 和 Xcode | 可能有少量编译错误（API 签名、Sendable 推断等）。请在 Xcode 中构建，并按报错修正 |
+| 在编写环境中用 Xcode 27 / iOS 27 SDK 编译 | 编写环境只有 Linux，没有 macOS 和 Xcode | 使用者已能构建本分支的早期版本；之后对 `BackgroundTransferCoordinator` 的修改（改用 `submitTaskRequest`）只在 Linux 上用模拟类型做过 Swift 6 并发检查，请重新构建确认 |
 | 在 iPhone 上运行 | 同上，也没有设备 | 权限弹窗、后台行为、界面布局都未实测 |
 | X-T30 III 真机上的任何协议交互 | 没有相机 | 蓝牙配对方案、SSID 格式、传输模式、D226/D227 效果、RAF/HEIF/视频是否出现在 Wi-Fi 列表等全部待验证，见验证清单 |
 | 上游 libfuji/libpict 自带的测试套件 | 按要求不自动执行可能含写入/删除的测试 | 只运行了本目录自己的测试，均为只读或针对仿真器 |
 | App Store / TestFlight 构建、隐私清单审查 | 超出本版范围 | 上架前需补 `PrivacyInfo.xcprivacy` 并复核所需理由 API |
 | 能否在 iOS 上用 ImageCaptureCore 访问 X-T30 III | 没有设备和 iOS SDK | 是否需要额外的 Info.plist 键待确认 |
-| BGContinuedProcessingTask 是否需要额外的 UIBackgroundModes | Apple 文档未明确，未在设备上验证 | 当前未添加任何后台模式；如果系统拒绝提交请求，会记录日志，前台传输不受影响 |
+| BGContinuedProcessingTask 是否需要额外的 UIBackgroundModes | Apple 文档未明确，未在设备上验证 | 当前未添加任何后台模式。如果系统拒绝提交，日志（分类 background）会记录原因，前台传输不受影响 |
 
 ## 设计要点
 
@@ -128,7 +128,8 @@ git -c url."https://github.com/".insteadOf="git@github.com:" submodule update --
   - **对象句柄不作为身份**：身份由文件名、大小、拍摄时间组成。续传前先重新按身份找到句柄，再读取续传点之前的 64 KB 与本地数据比对，一致才续传，否则从头下载。
   - “相机缩小后传输”（D226）得到的文件会单独标记，不与原图混淆。
 - **后台**：
-  - iOS 26 起，传输可以用 `BGContinuedProcessingTaskRequest`（系统显示进度，用户可取消），时间到了就暂停，保留已下载的数据。
+  - iOS 26 起，传输可以用 `BGContinuedProcessingTaskRequest`（系统显示进度，用户可取消），时间到了就暂停，保留已下载的数据，回到前台后自动继续（续传前会校验）。
+  - Info.plist 只允许通配的 `<Bundle ID>.transfer.*`。每次开始下载时生成新的 `<Bundle ID>.transfer.<UUID>`，**先为这个具体标识注册处理器，再提交请求**。系统不允许为通配标识本身注册处理器（Apple DTS 在开发者论坛 thread 799126 中的答复），所以启动时不注册任何处理器。
   - **不使用后台音频等保活手段**；间隔拍摄只在前台运行。
 - **危险操作**：
   - 首版不实现删除相机照片、恢复设置、固件刷写，也不尝试未知命令。

@@ -183,7 +183,9 @@ int ptp_eos_update_firmware(struct PtpRuntime *r, FILE *f, char *name) {
 	}
 
 	struct stat s;
-	fstat(fileno(f), &s);
+	if (fstat(fileno(f), &s) || s.st_size < 0 || s.st_size > UINT32_MAX) {
+		return -1;
+	}
 
 	char *payload = malloc(EOS_FIRM_MAX);
 
@@ -192,7 +194,7 @@ int ptp_eos_update_firmware(struct PtpRuntime *r, FILE *f, char *name) {
 		struct PtpCommand cmd;
 		cmd.code = PTP_OC_EOS_UpdateFirmware;
 		cmd.param_length = 2;
-		cmd.params[0] = s.st_size;
+		cmd.params[0] = (uint32_t)s.st_size;
 		cmd.params[1] = sent;
 
 		unsigned int size = EOS_FIRM_MAX;

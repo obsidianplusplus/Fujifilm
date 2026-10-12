@@ -118,9 +118,11 @@ int ptp_buffer_resize(struct PtpRuntime *r, size_t size) {
 
 	// realloc with a little extra space to minimize reallocs later on
 	static int extra = 100;
-	ptp_verbose_log(r, "Extending IO buffer to %X\n", size + extra);
+	// data_length is 32-bit; refuse sizes it cannot represent.
+	if (size > UINT32_MAX - extra) return PTP_OUT_OF_MEM;
+	ptp_verbose_log(r, "Extending IO buffer to %zX\n", size + extra);
 	r->data = realloc(r->data, size + extra);
-	r->data_length = size + extra;
+	r->data_length = (unsigned int)(size + extra);
 	if (r->data == NULL) {
 		return PTP_OUT_OF_MEM;
 	}

@@ -362,7 +362,7 @@ int ptp_download_object(struct PtpRuntime *r, int handle, FILE *f, size_t max) {
 	unsigned int read = 0;
 	while (1) {
 		ptp_mutex_lock(r);
-		int x = ptp_get_partial_object(r, handle, read, max);
+		int x = ptp_get_partial_object(r, handle, read, max > UINT32_MAX ? UINT32_MAX : (unsigned int)max);
 		if (x) {
 			ptp_mutex_unlock(r);
 			return x;

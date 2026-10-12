@@ -204,7 +204,7 @@ int fujiusb_restore_backup(struct PtpRuntime *r, FILE *input) {
 	fseek(input, 0, SEEK_END);
 	long file_size = ftell(input);
 	fseek(input, 0, SEEK_SET);
-	if (file_size > 100000) {
+	if (file_size < 0 || file_size > 100000) {
 		ptp_error_log(r, "Backup file seems to be too big, is the path correct?");
 		return -1;
 	}
@@ -238,7 +238,7 @@ int fujiusb_restore_backup(struct PtpRuntime *r, FILE *input) {
 		ptp_error_log(r, "Error reading backup file");
 	}
 
-	rc = ptp_send_object(r, buffer, file_size);
+	rc = ptp_send_object(r, buffer, (unsigned int)file_size);
 	return rc;
 }
 

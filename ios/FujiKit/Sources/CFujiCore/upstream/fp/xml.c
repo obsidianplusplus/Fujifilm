@@ -89,7 +89,7 @@ static int parse_prop(struct FujiProfile *fp, const char *key, const char *value
 	} else if (!strcmp(key, "IOPCode")) {
 		if (value == NULL) return -1;
 		if (strlen(value) != 8) return -1;
-		fp->IOPCode = strtoul(value, NULL, 16);
+		fp->IOPCode = (uint32_t)strtoul(value, NULL, 16); // 8 hex digits, checked above
 	} else if (!strcmp(key, "StructVer")) {
         // Should always be 0x10000
         return validate_lookup(value, &fp->StructVer, fp_struct_ver);
