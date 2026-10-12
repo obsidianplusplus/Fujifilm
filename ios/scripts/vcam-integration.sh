@@ -26,6 +26,10 @@ cp "$VCAM_BIN_DIR/fuji/lv2.jpg" "$WORK/card/DCIM/100_FUJI/DSCF0003.JPG"
 NO_RUN=1 BUILD_DIR="$WORK/c" "$ROOT/ios/scripts/c-core-check.sh" "$ROOT/ios/FujiKit/Tests/CTests/vcam_integration.c"
 
 wait_port_free() {
+	if ! command -v ss >/dev/null 2>&1; then
+		sleep 2 # no ss(8): give the previous vcam time to release its ports
+		return 0
+	fi
 	for _ in $(seq 1 60); do
 		if ! (ss -tan 2>/dev/null | grep -qE ":5574[0-2] .*(LISTEN|ESTAB|TIME-WAIT)"); then return 0; fi
 		sleep 1
